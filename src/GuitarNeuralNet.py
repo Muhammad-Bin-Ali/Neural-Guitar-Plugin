@@ -7,19 +7,6 @@ import pickle
 
 import WaveNetModified
 
-from dataclasses import dataclass
-
-
-@dataclass
-class HyperParams:
-    num_channels: int
-    dilation: int
-    num_repeat: int
-    kernel_size: int
-    learning_rate: int
-    data: str
-    batch_size: int
-
 
 class TrainingUtils:
     @staticmethod
@@ -31,27 +18,27 @@ class TrainingUtils:
         y = TrainingUtils.pre_emphasis_filter(actual)
         y_hat = TrainingUtils.pre_emphasis_filter(predicted)
 
-        return (y - y_hat).pow(2).sum(dim=2) / y.pow(2).sum(dim=2)
+        return (y - y_hat).pow(2).sum(dim=2) / (y.pow(2).sum(dim=2) + 1e-12)  # so we're not dividing by 0
 
 
 class GuitarNeuraleNet(lightning.LightningModule):
-    def __init__(self, hyper_params: HyperParams):
+    def __init__(self, hyper_params):
         super().__init__()
-        self.wavenet = WaveNetModified(hyper_params.num_channels, hyper_params.dilation, hyper_params.num_repeat, hyper_params.kernel_size)
-        self.hyper_params = hyper_params
+        self.wavenet = WaveNetModified(hyper_params.num_channels, hyper_params.dilation_depth, hyper_params.num_repeat, hyper_params.kernel_size)
+        self.hparams = hyper_params
         self.validation_step_outputs = []
 
     def forward(self, input):
         return self.wavenet(input)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.wavenet.parameters(), lr=self.hyper_params.learning_rate)
+        return torch.optim.Adam(self.wavenet.parameters(), lr=self.hparams.learning_rate)
 
     def train_dataloader(self):
         return DataLoader(
             self.train_ds,
             shuffle=True,
-            batch_size=self.hyper_params.batch_size,
+            batch_size=self.hparams.batch_size,
             num_workers=4,
         )
 
@@ -63,7 +50,7 @@ class GuitarNeuraleNet(lightning.LightningModule):
         return loss
 
     def val_dataloader(self):
-        return DataLoader(self.valid_ds, batch_size=self.hyper_params.batch_size, num_workers=4)
+        return DataLoader(self.valid_ds, batch_size=self.hparams.batch_size, num_workers=4)
 
     def validation_step(self, batch, batch_idx):
         x, actual = batch
@@ -75,7 +62,7 @@ class GuitarNeuraleNet(lightning.LightningModule):
 
     def prepare_data(self):
         ds = lambda x, y: TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
-        data = pickle.load(open(self.hyper_params.data, "rb"))
+        data = pickle.load(open(self.hparams.data, "rb"))
         self.train_ds = ds(data["x_train"], data["y_train"])
         self.valid_ds = ds(data["x_valid"], data["y_valid"])
 
