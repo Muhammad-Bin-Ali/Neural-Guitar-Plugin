@@ -15,7 +15,7 @@ class ResidualLayer(nn.Module):
         out = torch.tanh(out1) * torch.sigmoid(out2)
         skip = out
         out = self.residual(out)
-        out = out + input[:, :, -out.size(2) :]
+        out = out + input[:, :, -out.size(2) :]  # aligns the two tensors
         return self.residual(out), skip
 
 
@@ -32,7 +32,7 @@ class WaveNetModified(nn.Module):
                 self.res_layers.append(res_layer)
 
         # num_channels * num_repeat * dilation_depth gives out total number of outputs from our Residual Stack
-        self.linearMix = nn.Conv1d(in_channels=num_channels * num_repeat * dilation_depth, out_channels=1, kernel_size=1)
+        self.linear_mix = nn.Conv1d(in_channels=num_channels * num_repeat * dilation_depth, out_channels=1, kernel_size=1)
 
     def forward(self, input):
         skips = []
@@ -42,3 +42,7 @@ class WaveNetModified(nn.Module):
         for res_layer in self.res_layers:
             out, skip = res_layer(out)
             skips.append(skip)
+
+        out = torch.cat([s[:, :, -out.size(2) :] for s in skips], dim=1)
+        out = self.linear_mix(out)
+        return out
