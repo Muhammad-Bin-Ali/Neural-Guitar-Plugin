@@ -39,32 +39,13 @@ class GuitarNeuraleNet(lightning.LightningModule):
         super().__init__()
         self.wavenet = WaveNetModified(hyper_params.num_channels, hyper_params.dilation, hyper_params.num_repeat, hyper_params.kernel_size)
         self.hyper_params = hyper_params
+        self.validation_step_outputs = []
 
     def forward(self, input):
         return self.wavenet(input)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.wavenet.parameters(), lr=self.hyper_params.learning_rate)
-
-    def training_step(self, batch, batch_idx):
-        x, actual = batch
-        predicted = self.forward(x)
-        loss = TrainingUtils.error_to_signal_ratio(predicted, actual[:, :, -predicted.size(2) :]).mean()
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        x, actual = batch
-        predicted = self.forward(x)
-        loss = TrainingUtils.error_to_signal_ratio(predicted, actual[:, :, -predicted.size(2) :]).mean()
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        return loss
-
-    def prepare_data(self):
-        ds = lambda x, y: TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
-        data = pickle.load(open(self.hyper_params.data, "rb"))
-        self.train_ds = ds(data["x_train"], data["y_train"])
-        self.valid_ds = ds(data["x_valid"], data["y_valid"])
 
     def train_dataloader(self):
         return DataLoader(
@@ -74,5 +55,32 @@ class GuitarNeuraleNet(lightning.LightningModule):
             num_workers=4,
         )
 
+    def training_step(self, batch, batch_idx):
+        x, actual = batch
+        predicted = self.forward(x)
+        loss = TrainingUtils.error_to_signal_ratio(predicted, actual[:, :, -predicted.size(2) :]).mean()
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return loss
+
     def val_dataloader(self):
-        return DataLoader(self.valid_ds, batch_size=self.hparams.batch_size, num_workers=4)
+        return DataLoader(self.valid_ds, batch_size=self.hyper_params.batch_size, num_workers=4)
+
+    def validation_step(self, batch, batch_idx):
+        x, actual = batch
+        predicted = self.forward(x)
+        loss = TrainingUtils.error_to_signal_ratio(predicted, actual[:, :, -predicted.size(2) :]).mean()
+        self.log("validation_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.validation_step_outputs.append(loss)
+        return loss
+
+    def prepare_data(self):
+        ds = lambda x, y: TensorDataset(torch.from_numpy(x), torch.from_numpy(y))
+        data = pickle.load(open(self.hyper_params.data, "rb"))
+        self.train_ds = ds(data["x_train"], data["y_train"])
+        self.valid_ds = ds(data["x_valid"], data["y_valid"])
+
+    def on_validation_epoch_end(self):
+        avg_loss = torch.stack(self.validation_step_outputs).mean()
+        self.validation_step_outputs.clear()
+        self.log("average_validation_loss", avg_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return avg_loss
