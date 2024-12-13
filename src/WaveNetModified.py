@@ -16,7 +16,7 @@ class ResidualLayer(nn.Module):
         skip = out
         out = self.residual(out)
         out = out + input[:, :, -out.size(2) :]  # aligns the two tensors
-        return self.residual(out), skip
+        return out, skip
 
 
 class WaveNetModified(nn.Module):
