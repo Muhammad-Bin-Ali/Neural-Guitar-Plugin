@@ -19,7 +19,7 @@ class TrainingUtils:
         return (y - y_hat).pow(2).sum(dim=2) / (y.pow(2).sum(dim=2) + 1e-10)  # so we're not dividing by 0
 
 
-class GuitarNeuraleNet(lightning.LightningModule):
+class GuitarNeuralNet(lightning.LightningModule):
     def __init__(self, hyper_params):
         super().__init__()
         self.wavenet = WaveNetModified.WaveNetModified(hyper_params["num_channels"], hyper_params["dilation_depth"], hyper_params["num_repeat"], hyper_params["kernel_size"])
