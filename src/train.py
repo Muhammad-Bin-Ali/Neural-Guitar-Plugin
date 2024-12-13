@@ -4,7 +4,7 @@ import pytorch_lightning as lightning
 
 
 def train(args):
-    model = GuitarNeuralNet.GuitarNeuraleNet(vars(args))
+    model = GuitarNeuralNet.GuitarNeuralNet(vars(args))
     trainer = lightning.Trainer(max_epochs=args.max_epochs, accelerator=args.accelerator, devices=args.devices)
     trainer.fit(model)
 
