@@ -5,7 +5,7 @@ import pytorch_lightning as lightning
 
 def train(args):
     model = GuitarNeuralNet.GuitarNeuraleNet(vars(args))
-    trainer = lightning.Trainer(max_epochs=args.max_epochs)
+    trainer = lightning.Trainer(max_epochs=args.max_epochs, accelerator=args.accelerator, devices=args.devices)
     trainer.fit(model)
 
 
@@ -21,6 +21,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--max_epochs", type=int, default=1_500)
     parser.add_argument("--data", default="data.pickle")
+    
+    parser.add_argument("--accelerator", default=None)
+    parser.add_argument("--devices", default=None)
 
     args = parser.parse_args()
 
