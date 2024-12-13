@@ -20,9 +20,10 @@ def prep_data(args):
     d = {}
     d["x_train"], d["x_valid"], d["x_test"] = split(x)
     d["y_train"], d["y_valid"], d["y_test"] = split(y)
+    d["mean"], d["std"] = d["x_train"].mean(), d["x_train"].std()
 
     for key in "x_train", "x_valid", "x_test":
-        d[key] = (d[key] - d["x_train"].mean()) / d["x_train"].std()  # mean-variance normalization
+        d[key] = (d[key] - d["mean"]) / d["std"]  # mean-variance normalization
 
     pickle.dump(d, open(args.data, "wb"))
 
