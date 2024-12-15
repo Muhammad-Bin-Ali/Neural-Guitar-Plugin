@@ -8,12 +8,13 @@ class ResidualLayer(nn.Module):
         self.conv_tanh = nn.Conv1d(dilation=dilations, in_channels=num_channels, out_channels=num_channels, kernel_size=kernel_size)
         self.conv_sigm = nn.Conv1d(dilation=dilations, in_channels=num_channels, out_channels=num_channels, kernel_size=kernel_size)
         self.residual = nn.Conv1d(dilation=dilations, in_channels=num_channels, out_channels=num_channels, kernel_size=1)
+        self.skip = nn.Conv1d(dilation=dilations, in_channel=num_channels, out_channels=num_channels, kernel_size=1)
 
     def forward(self, input):
         out1 = self.conv_tanh(input)
         out2 = self.conv_sigm(input)
         out = torch.tanh(out1) * torch.sigmoid(out2)
-        skip = out
+        skip = self.skip(out)
         out = self.residual(out)
         out = out + input[:, :, -out.size(2) :]  # aligns the two tensors
         return out, skip
