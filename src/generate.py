@@ -23,29 +23,25 @@ def generate(args):
     length = len(data) - len(data) % sample_size
 
     # split into samples
-    input = data[:length].reshape((-1, 1, sample_size)).astype(np.float32)
+    data = data[:length].reshape((-1, 1, sample_size)).astype(np.float32)
 
     # standardize input
-    input = (input - mean) / std
+    data = (data - mean) / std
 
     # pad each sample with the previous one for temporal context
-    prev_samples = np.concatenate((np.zeros_like(input[0:1]), input[:-1]), axis=0)
-    new_input = np.concatenate((prev_samples, input), axis=2)
+    prev_samples = np.concatenate((np.zeros_like(data[0:1]), data[:-1]), axis=0)
+    new_input = np.concatenate((prev_samples, data), axis=2)
 
     predicted = []
     batches = new_input.shape[0] // args.batch_size
     for x in tqdm(np.array_split(new_input, batches)):
-        input_tensor = torch.from_numpy(x).to(device).float()
+        input_tensor = torch.from_numpy(x).to(device)
         predicted.append(model(input_tensor).cpu().numpy())
 
     predicted_np = np.concatenate(predicted)
-    predicted_np = predicted_np[:, :, -input.shape[2] :]
+    predicted_np = predicted_np[:, :, -data.shape[2] :]
 
-    print(len(predicted_np))
-    print(np.max(np.abs(len(predicted_np))))
-    print(int(1 // args.sample_time))
-
-    wavfile.write(args.output, 44100, predicted_np)
+    wavfile.write(args.output, 44100, predicted_np.flatten().astype(np.int16))
 
 
 if __name__ == "__main__":
